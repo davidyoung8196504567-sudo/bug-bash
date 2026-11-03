@@ -1,0 +1,59 @@
+# defect-hunt
+
+An environment for measuring, and eventually training, how well language
+models find bugs in code against a written specification.
+
+**Status:** Phase 0, under active development. See [PLAN.md](PLAN.md) for the
+timeline and [JOURNAL.md](JOURNAL.md) for the daily research log.
+
+## The idea
+
+A model is given a task specification and an implementation that may contain
+a bug. It must write tests that expose the bug. Scoring is automatic and needs
+no human or LLM judge:
+
+> A test earns credit only if it **passes on the correct implementation** and
+> **fails on the buggy one**.
+
+This is the standard a QA engineer applies to a bug report: it is not a bug
+until there is a reproducible case, and the case has to be right about what
+correct behaviour is. The rule also blocks the obvious reward hacks: a test
+that always fails (`assert False`) fails on the correct code too and scores
+zero.
+
+## How it works
+
+1. **Tasks** (`tasks/<name>/`): a `spec.md`, a correct `reference.py`, and
+   `hidden_tests.py` that the model never sees.
+2. **Bug injection** (`defect_hunt/mutate.py`): single-change mutants of the
+   reference (swapped comparisons, off-by-one constants, flipped boolean logic).
+3. **Mutant validation** (`defect_hunt/tasks.py`): a mutant is kept only if
+   the hidden tests detect it. Rejected mutants are reviewed by hand, since
+   they are either harmless or a gap in the hidden tests.
+4. **Grading** (`defect_hunt/grader.py`): candidate tests must pass on the
+   reference; the score is the fraction of mutants they detect.
+
+## Quick start
+
+```bash
+pip install -e ".[dev]"
+python -m defect_hunt.cli list
+python -m defect_hunt.cli mutants business_hours
+python -m defect_hunt.cli grade business_hours path/to/your_tests.py
+python -m pytest tests
+```
+
+Candidate tests import the code under test as `impl`, for example
+`from impl import is_open`.
+
+## Safety note
+
+Phase 0 runs candidate tests in a subprocess with a timeout only. Do not
+grade untrusted model output until the Docker sandbox (Phase 2) is in place.
+
+## Author and tools
+
+David Young. MEng Computer Engineering (thesis: Fuzzy ARTMAP neural network
+speech recognition), 25+ years in software verification. Built with Claude
+Code as a development partner; design decisions, task authoring and analysis
+are my own.

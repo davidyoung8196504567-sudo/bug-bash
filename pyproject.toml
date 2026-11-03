@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "defect-hunt"
+version = "0.0.1"
+description = "An environment for measuring and training LLM bug finding against a spec"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "David Young" }]
+dependencies = ["pytest>=8"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["defect_hunt*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
