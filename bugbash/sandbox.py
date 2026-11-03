@@ -21,7 +21,7 @@ class RunResult:
 
 def run_tests(impl_source: str, test_source: str, timeout: int = TIMEOUT_SECONDS) -> RunResult:
     """Write impl as impl.py and tests as test_candidate.py, run pytest."""
-    with tempfile.TemporaryDirectory(prefix="defect_hunt_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="bugbash_") as tmp:
         tmp_path = Path(tmp)
         (tmp_path / "impl.py").write_text(impl_source, encoding="utf-8")
         (tmp_path / "test_candidate.py").write_text(test_source, encoding="utf-8")

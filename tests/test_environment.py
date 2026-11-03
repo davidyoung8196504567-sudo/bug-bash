@@ -1,9 +1,9 @@
 """Tests for the environment itself: the mutator, the task loader and the grader."""
 import pytest
 
-from defect_hunt.grader import grade
-from defect_hunt.mutate import generate_mutants
-from defect_hunt.tasks import build_mutants, list_tasks, load_task
+from bugbash.grader import grade
+from bugbash.mutate import generate_mutants
+from bugbash.tasks import build_mutants, list_tasks, load_task
 
 SAMPLE = "def f(a, b):\n    return a < b and not a == 0\n"
 

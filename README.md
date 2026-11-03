@@ -1,7 +1,12 @@
-# defect-hunt
+# bug-bash
 
 An environment for measuring, and eventually training, how well language
 models find bugs in code against a written specification.
+
+(Not related to the Bash shell. A *bug bash* is a software testing tradition:
+the team spends a session trying to break the product, and whoever finds the
+most real bugs wins. This project runs the same contest with language models
+as the participants.)
 
 **Status:** Phase 0, under active development. See [PLAN.md](PLAN.md) for the
 timeline and [JOURNAL.md](JOURNAL.md) for the daily research log.
@@ -25,21 +30,21 @@ zero.
 
 1. **Tasks** (`tasks/<name>/`): a `spec.md`, a correct `reference.py`, and
    `hidden_tests.py` that the model never sees.
-2. **Bug injection** (`defect_hunt/mutate.py`): single-change mutants of the
+2. **Bug injection** (`bugbash/mutate.py`): single-change mutants of the
    reference (swapped comparisons, off-by-one constants, flipped boolean logic).
-3. **Mutant validation** (`defect_hunt/tasks.py`): a mutant is kept only if
+3. **Mutant validation** (`bugbash/tasks.py`): a mutant is kept only if
    the hidden tests detect it. Rejected mutants are reviewed by hand, since
    they are either harmless or a gap in the hidden tests.
-4. **Grading** (`defect_hunt/grader.py`): candidate tests must pass on the
+4. **Grading** (`bugbash/grader.py`): candidate tests must pass on the
    reference; the score is the fraction of mutants they detect.
 
 ## Quick start
 
 ```bash
 pip install -e ".[dev]"
-python -m defect_hunt.cli list
-python -m defect_hunt.cli mutants business_hours
-python -m defect_hunt.cli grade business_hours path/to/your_tests.py
+python -m bugbash.cli list
+python -m bugbash.cli mutants business_hours
+python -m bugbash.cli grade business_hours path/to/your_tests.py
 python -m pytest tests
 ```
 

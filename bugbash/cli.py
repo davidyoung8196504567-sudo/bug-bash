@@ -1,17 +1,17 @@
 """Command line entry point.
 
-    python -m defect_hunt.cli mutants business_hours
-    python -m defect_hunt.cli grade business_hours path/to/candidate_tests.py
+    python -m bugbash.cli mutants business_hours
+    python -m bugbash.cli grade business_hours path/to/candidate_tests.py
 """
 import argparse
 from pathlib import Path
 
-from defect_hunt.grader import grade
-from defect_hunt.tasks import build_mutants, list_tasks, load_task
+from bugbash.grader import grade
+from bugbash.tasks import build_mutants, list_tasks, load_task
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="defect_hunt")
+    parser = argparse.ArgumentParser(prog="bugbash")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
     p_mut = sub.add_parser("mutants")

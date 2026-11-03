@@ -1,6 +1,6 @@
 # Research Journal
 
-Daily log for defect-hunt. One entry per working session, newest at the top.
+Daily log for bug-bash. One entry per working session, newest at the top.
 Targets and phases are in [PLAN.md](PLAN.md).
 
 Entry template:
@@ -49,7 +49,14 @@ Entry template:
 - Speed: one pytest subprocess per mutant, ~60 s for the self-test suite.
   Fine for now; cache validated mutants to disk in Phase 1.
 
-**Next:** Create public GitHub repo and confirm CI is green. Then write
-tasks 2 and 3.
+**Rename:** Project renamed from `defect-hunt` to `bug-bash` before the first
+push. A bug bash is the QA team contest I ran and took part in for years:
+everyone tries to break the product, the person with the most real bugs wins.
+Same structure here with models, and the same old rules carry over: only
+reproducible, correct reports count, and "most bugs" scoring invites gaming
+(the human version of reward hacking), so precision gets tracked alongside
+bugs found. Injected bugs now use the project prefix: `BB-<task>-NNN`.
+
+**Next:** Confirm CI is green on GitHub. Then write tasks 2 and 3.
 
 **On schedule?** Yes.

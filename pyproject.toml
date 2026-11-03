@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "defect-hunt"
+name = "bug-bash"
 version = "0.0.1"
 description = "An environment for measuring and training LLM bug finding against a spec"
 readme = "README.md"
@@ -16,7 +16,7 @@ dependencies = ["pytest>=8"]
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]
-include = ["defect_hunt*"]
+include = ["bugbash*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

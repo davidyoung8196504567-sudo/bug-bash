@@ -7,8 +7,8 @@ nothing, which blocks trivial reward hacks like `assert False`.
 """
 from dataclasses import dataclass, field
 
-from defect_hunt.sandbox import run_tests
-from defect_hunt.tasks import Task
+from bugbash.sandbox import run_tests
+from bugbash.tasks import Task
 
 
 @dataclass

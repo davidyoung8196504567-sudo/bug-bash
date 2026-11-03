@@ -2,8 +2,8 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from defect_hunt.mutate import Mutant, generate_mutants
-from defect_hunt.sandbox import run_tests
+from bugbash.mutate import Mutant, generate_mutants
+from bugbash.sandbox import run_tests
 
 TASKS_DIR = Path(__file__).resolve().parent.parent / "tasks"
 

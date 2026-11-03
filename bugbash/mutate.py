@@ -83,7 +83,7 @@ def generate_mutants(source: str, task_name: str = "task") -> list[Mutant]:
             apply_fn(target)
         ast.fix_missing_locations(mutated)
         mutants.append(Mutant(
-            mutant_id=f"{task_name}-m{k:03d}",
+            mutant_id=f"BB-{task_name}-{k:03d}",
             operator=operator,
             line=getattr(node, "lineno", 0),
             description=desc,

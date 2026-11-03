@@ -18,4 +18,4 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
-      - run: python -m defect_hunt.cli mutants business_hours
+      - run: python -m bugbash.cli mutants business_hours
