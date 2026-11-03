@@ -57,6 +57,10 @@ reproducible, correct reports count, and "most bugs" scoring invites gaming
 (the human version of reward hacking), so precision gets tracked alongside
 bugs found. Injected bugs now use the project prefix: `BB-<task>-NNN`.
 
-**Next:** Confirm CI is green on GitHub. Then write tasks 2 and 3.
+**Published:** https://github.com/davidyoung8196504567-sudo/bug-bash (public).
+CI green on Python 3.12 and 3.14. **Phase 0 complete, 2 days ahead of plan.**
+
+**Next:** Phase 1. Write tasks 2 and 3 (call_flow, rate_limiter), and cache
+validated mutants to disk so the suite stops rebuilding them every run.
 
 **On schedule?** Yes.
