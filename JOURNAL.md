@@ -60,7 +60,21 @@ bugs found. Injected bugs now use the project prefix: `BB-<task>-NNN`.
 **Published:** https://github.com/davidyoung8196504567-sudo/bug-bash (public).
 CI green on Python 3.12 and 3.14. **Phase 0 complete, 2 days ahead of plan.**
 
-**Next:** Phase 1. Write tasks 2 and 3 (call_flow, rate_limiter), and cache
-validated mutants to disk so the suite stops rebuilding them every run.
+**Design decisions (evening):**
+- Domain: IVR first. Most recent work, and the defect types repeat on every
+  project, so they make realistic bug-injection rules.
+- Structure: a generic IVR simulator runs data files (call flow, prompts,
+  config). Bugs are injected into the build files, not the engine, because in
+  real IVR projects defects come from translating documents into
+  configuration. The simulator is the system under test; walkers (my
+  path-walking test generator as the non-AI baseline, and language models)
+  are the test clients.
+- Tests are scripted calls (data), so the grader never runs walker code.
+- Everything fictional and written for this project ("Northwind Benefits
+  Line"). No client material.
+- I build the simulator myself; Claude pairs on injector, grader, renderer.
+
+**Next:** Phase 1 step 1: write the IVR bug catalogue and settle the data
+file formats. Cache validated mutants to disk.
 
 **On schedule?** Yes.
