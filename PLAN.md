@@ -22,6 +22,12 @@ bug-bash reproduces that structure:
 
 - **Simulator** (system under test): loads a build and plays the IVR side of a
   call. It holds the call state, plays prompts and waits for caller input.
+  It is `ivrsim/`, a self-contained package that never imports `bugbash`
+  (design: [IVRSIM_DESIGN.md](IVRSIM_DESIGN.md)).
+- **Load report and baseline**: every load reports errors (Architect would
+  refuse to publish), warnings, and every difference from a named baseline.
+  A clean load (0 errors, warnings acknowledged, 0 differences) certifies
+  the correct build, and the bug injector runs only on a certified build.
 - **Walker** (test client): the caller. Decides what to press and what to
   expect. Walkers compete in the bug bash: the rule-based path-walking test
   generator (non-AI baseline) and language models.
@@ -33,7 +39,14 @@ bug-bash reproduces that structure:
 - **What the model receives**: the readable spec documents plus a phone line
   into one build (buggy, or occasionally the correct one, without being told
   which). Two modes: black box (phone line only) and white box (phone line
-  plus the build's configuration files).
+  plus the build's configuration files). The baseline diff and the hidden
+  answer keys (decoys, design smells) are never in what the model receives.
+- **Joke decoys**: where a famous joke suggests a value, the spec states a
+  different one. A model that guesses from the joke instead of reading the
+  spec is wrong, measurably.
+- **Design smells**: confusing but spec-valid design (a "main menu" key that
+  behaves differently in different places). Not bugs: reporting one as a bug
+  is a false positive.
 - **Known limitation**: this tests IVR logic, not a real telephony platform.
   In exchange every call is fast and deterministic, which makes large-scale
   scoring and training possible.
@@ -44,25 +57,35 @@ No client material is used.
 ## Simulator interface (proposal, owned by David)
 
 ```python
-session = IvrSession(build_dir, when=datetime(...))
-session.next()        # -> Prompt(id) | WaitInput(kind, timeout) | Transfer(queue) | Disconnect(reason)
-session.send(event)   # event: Digit("2") | Digits("123456789") | NoInput() | Hangup()
+pack, report = load_pack(build_dir)          # the loader takes file contents; the report is always written
+session = IvrSession(pack, when=datetime(...), world={...})
+session.next()        # -> Prompt(id, lang, text) | WaitInput(kind, min, max, terminator)
+                      #    | Transfer(queue) | AgentSays(text) | Disconnect(reason)
+session.send(event)   # event: Digits("2") | Digits("000101#") | NoInput() | Hangup() | Say(text)
+session.trace         # every event, including nodes the caller never hears
 
-run_call(build_dir, when, inputs) -> list[Output]   # scripted convenience wrapper
+run_call(pack, when, world, inputs) -> list[Event]   # scripted convenience wrapper
 ```
 
 The step-by-step session lets a model react to what it hears, like a real
-caller. `run_call` serves the grader and the path-walker.
+caller. `run_call` serves the grader and the path-walker. `next()` returns
+only what the caller perceives (black box); `trace` holds everything (white
+box and debugging). Tests assert prompts by ID, and the grader compares the
+text heard with the reference build's text for that ID, so a swapped or
+corrupted prompt text is caught. No wall clock, randomness, threads or
+sockets inside the engine: the same code can later run in a browser.
 
 ## Division of work
 
 | David | Claude (pair) |
 |---|---|
-| Bug catalogue (IVR defects seen on every project) | Bug injector over build files, from the catalogue |
+| Bug catalogue (IVR defects seen on every project) | Bug injector in `ivrsim`, from the catalogue: certified baseline only, one change per mutant, diff stored |
 | Data file formats (call flow, prompts, config) | Spec renderer: build files -> readable spec documents |
-| IVR simulator | Grader for scripted calls, mutant caching, CI |
-| Northwind Benefits Line call flow | Model harness (Phase 3) |
-| Path-walker baseline (own prior work, cleaned of client data) | Engine self-tests alongside the simulator |
+| IVR simulator: loader and load report, session engine, automated service officer | Grader for scripted calls, mutant caching, CI |
+| Not Dead Yet Pension Line call flow | Model harness (Phase 3) |
+| Path-walker baseline (own prior work, rewritten for the new build format) | Engine self-tests alongside the simulator |
+| Joke decoys and planted design smells, with hidden answer keys | Developer consoles: manual caller and manual service officer; record a call as a test |
+| | Guard tests (generic engine, fictitious data) and a pre-commit hook |
 
 ## Timeline
 
@@ -79,11 +102,15 @@ caller. `run_call` serves the grader and the path-walker.
 ### Phase 1 steps
 
 1. **Nov 4**: bug catalogue and data file formats (David)
-2. **Nov 5 - 7**: IVR simulator (David); engine self-tests and spec renderer (pair)
-3. **Nov 8**: Northwind Benefits Line, bilingual EN/FR, first full build + spec
-4. **Nov 9 - 10**: bug injector for build files; hand review of every mutant
-5. **Nov 11 - 12**: path-walker baseline plugged in and graded
-6. **Nov 13 - 15**: call flows 2 and 3, mutant caching, CI
+2. **Nov 5 - 7**: IVR simulator: loader and load report, session engine (David);
+   guard tests and pre-commit hook, engine self-tests, spec renderer (pair)
+3. **Nov 8**: Not Dead Yet Pension Line, bilingual EN/FR, first full build + spec,
+   with joke decoys and planted design smells
+4. **Nov 9 - 10**: bug injector in `ivrsim` (14 operators, certified baseline only);
+   hand review of every mutant
+5. **Nov 10 - 11**: grader, automated service officer, developer consoles
+6. **Nov 11 - 12**: path-walker baseline plugged in and graded
+7. **Nov 13 - 15**: call flows 2 and 3, mutant caching, CI
 
 ## Later (out of scope for now)
 
@@ -92,6 +119,12 @@ caller. `run_call` serves the grader and the path-walker.
   model finds before anything is built.
 - More domain clusters: network security config, protocol decoding,
   embedded state machines, software lifecycle.
+- **Design-evaluation bonus question**: "evaluate the IVR you tested, against
+  the spec and against industry norms", answered as structured findings
+  (node, smell class, reason) and scored against the hidden smell list, with
+  no judge.
+- **Fix task**: the model proposes a change to the build; it scores if the
+  fixed build passes the hidden tests. A known mutant's fix is its inverse diff.
 
 ## Open questions
 
@@ -99,4 +132,7 @@ caller. `run_call` serves the grader and the path-walker.
 - Should a walker also name the defect (node + description), scored
   separately from the test call?
 - How often should the correct build be served, so "no bug found" is a
-  rewarded answer and flooding with reports is not?
+  rewarded answer and flooding with reports is not? (The clean-load
+  certificate guarantees the build served is in fact correct.)
+- Report a decoy-error rate (expectations that matched the joke, not the
+  spec) alongside recall and precision?
