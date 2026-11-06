@@ -92,9 +92,9 @@ sockets inside the engine: the same code can later run in a browser.
 | Phase | Dates (2026) | Deliverable | Done when |
 |---|---|---|---|
 | 0. Scaffolding | Nov 3 | Repo, CI, first code-level task | **Done** |
-| 1. IVR environment | Nov 4 - Nov 15 | Simulator, 3 call flows, bug injector, path-walker baseline | Every mutant reviewed against the spec text; CI green |
-| 2. Grader + harness hardening | Nov 16 - Nov 22 | Recall and precision scoring, attempt logs, Docker for any code execution | Repeatable scored runs from one command |
-| 3. The bug bash | Nov 23 - Nov 29 | Leaderboard: path-walker vs Claude API vs small open model, black and white box | Results table, failure analysis, reward-hacking log |
+| 1. IVR environment | Nov 4 - Nov 15 | Simulator, 3 call flows, bug injector, path-walker baseline | Every mutant reviewed against the spec text; CI green on the OS matrix, with guards and the score gate required |
+| 2. Grader + harness hardening | Nov 16 - Nov 22 | Recall and precision scoring, attempt logs, Docker for any code execution, metrics dashboard | Repeatable scored runs from one command; grading in CI runs in the published image |
+| 3. The bug bash | Nov 23 - Nov 29 | Leaderboard: path-walker vs Claude API vs Claude Code over MCP vs small open model, black and white box | Results table, failure analysis, reward-hacking log |
 | **Apply** | **Nov 30** | Application submitted with repo link | |
 | 4. Training (stretch) | Dec 1 - Dec 14 | LoRA rejection-sampling fine-tune of open model | Before/after on held-out call flows, reported honestly |
 | 5. Write-up | Dec 15 - Dec 21 | REPORT.md | Motivation, method, results, limitations, next steps |
@@ -110,7 +110,40 @@ sockets inside the engine: the same code can later run in a browser.
    hand review of every mutant
 5. **Nov 10 - 11**: grader, automated service officer, developer consoles
 6. **Nov 11 - 12**: path-walker baseline plugged in and graded
-7. **Nov 13 - 15**: call flows 2 and 3, mutant caching, CI
+7. **Nov 13 - 15**: call flows 2 and 3, mutant caching, CI (see Engineering practice 1)
+
+## Engineering practice
+
+The environment is also a showcase of how it is built: tested, gated and
+reproducible. These items are scheduled inside the phases above.
+
+1. **CI/CD (Phase 1, Nov 13 - 15).** Extend `ci.yml`:
+   - guards 1-4 run as **required checks**, matching the pre-commit hook;
+   - an **OS matrix** (ubuntu, windows, macos) next to the Python matrix, since
+     the engine is meant to be portable;
+   - validated mutants **cached** with `actions/cache`, keyed on a hash of the pack;
+   - a **score regression gate**: every pull request re-grades the path-walker
+     on every call flow, fails if recall drops, and posts the score change as a
+     PR comment;
+   - a **nightly scheduled run** of the full baseline bug bash, results uploaded
+     as a workflow artifact.
+2. **Docker (Phase 2).** A `Dockerfile` for the grader sandbox, built in CI and
+   published to GHCR; the CI grading job runs inside that image. Needs Docker
+   installed on a dev host first (see the Day 1 journal blocker).
+3. **Quality metrics (Phase 2).** Every scored run appends to a metrics history:
+   recall, precision, decoy-error rate, hidden-test gaps found, suite runtime,
+   and flake rate from repeat runs (expected 0, since the engine is
+   deterministic; measuring it is the point). CI publishes the trends as a
+   small GitHub Pages dashboard.
+4. **Agent harness over MCP (Phase 3).** Expose `IvrSession` as an MCP server
+   with tools to dial, press digits, listen and hang up. Black-box mode is then
+   tool access only, and Claude Code runs as a walker next to the Claude API
+   model and the small open model. The same harness can later run GitHub
+   Copilot as a walker (links to IVR_AgentBench).
+5. **Review log of AI-written work (all phases).** The journal template gets a
+   **Caught in review** line: AI-written code or tests that were rejected or
+   corrected, and why (for example a test that passed but verified nothing).
+   It records the human-review half of the division of work above.
 
 ## Later (out of scope for now)
 

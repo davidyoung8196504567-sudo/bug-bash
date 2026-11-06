@@ -10,6 +10,7 @@ Entry template:
 **Goal:** what this session set out to do
 **Done:** what actually got done
 **Findings:** anything surprising, measured, or worth putting in the report
+**Caught in review:** AI-written code or tests rejected or corrected, and why
 **Blockers / risks:**
 **Next:** the first thing to do next session
 **On schedule?** yes / behind by N days (and why)
