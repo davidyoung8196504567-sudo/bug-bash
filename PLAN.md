@@ -133,10 +133,24 @@ sockets inside the engine: the same code can later run in a browser.
 | **Apply** | **Nov 30 at the latest** | Application submitted with repo link | |
 | 4. Training (stretch) | Dec 1 - Dec 14 | LoRA rejection-sampling fine-tune of open model | Before/after on held-out call flows, reported honestly |
 | 5. Write-up | Dec 15 - Dec 21 | REPORT.md | Motivation, method, results, limitations, next steps |
-| 6. Python upgrade | Dec 22 - Dec 28 | The lock moved from Python 3.13 to the current 3.15 release, with the smallest dependency changes that need | Full test suite passes, and the results table reproduces identically on 3.15; README and REPORT.md updated |
+| 6. Python upgrade | Dec 22 - Dec 28 | Before/after comparison, 3.13 vs the current 3.15 release: the same recorded test scripts re-graded on both, the self-tests, and timings; then the lock moved to 3.15 with the smallest dependency changes needed | Scores identical on both; runtime and configuration differences measured and explained; REPORT.md gains an upgrade section |
 
 These dates replace the build plan in section 7 of
 [IVRSIM_DESIGN.md](IVRSIM_DESIGN.md).
+
+### Phase 6 steps
+
+1. **Before (3.13.9):** record the environment (Python, pytest and every
+   installed package version). Re-grade every recorded test script from Phase 3:
+   the path-walker's and the models'. Run the self-tests, and time each step.
+   The models are not called again; their test scripts are data, so this
+   isolates Python from model randomness.
+2. **Upgrade:** move CI, `requires-python` and the dev machines to 3.15. Change
+   a dependency only if it fails on 3.15, and record why.
+3. **After (3.15):** repeat step 1 exactly.
+4. **Compare:** every score must be identical, mutant by mutant. Report the
+   runtime difference, and any warning or configuration change the upgrade
+   needed. The comparison goes into REPORT.md as an upgrade section.
 
 ### Phase 1 steps
 
@@ -201,7 +215,8 @@ reproducible. Items marked *deferred* wait until after the application
   one version: Python 3.13.9, pytest 8.4.2, Ubuntu 24.04 LTS in CI (decided
   2026-11-10). A version changes only to get past a reproduced problem, in the
   smallest change that does it. Phase 6 then moves the lock to Python 3.15
-  (released 2026-10-09). Other Ubuntu versions, Windows and macOS, and Pyodide
+  (released 2026-10-09), proving with a before/after run that the upgrade
+  changes no score. Other Ubuntu versions, Windows and macOS, and Pyodide
   come after that.
 - **Spec-vs-spec task type**: inject inconsistencies between the documents
   themselves (call flow vs prompt sheet vs workbook) and score how many a
