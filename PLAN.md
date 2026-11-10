@@ -138,20 +138,6 @@ sockets inside the engine: the same code can later run in a browser.
 These dates replace the build plan in section 7 of
 [IVRSIM_DESIGN.md](IVRSIM_DESIGN.md).
 
-### Phase 6 steps
-
-1. **Before (3.13.9):** record the environment (Python, pytest and every
-   installed package version). Re-grade every recorded test script from Phase 3:
-   the path-walker's and the models'. Run the self-tests, and time each step.
-   The models are not called again; their test scripts are data, so this
-   isolates Python from model randomness.
-2. **Upgrade:** move CI, `requires-python` and the dev machines to 3.15. Change
-   a dependency only if it fails on 3.15, and record why.
-3. **After (3.15):** repeat step 1 exactly.
-4. **Compare:** every score must be identical, mutant by mutant. Report the
-   runtime difference, and any warning or configuration change the upgrade
-   needed. The comparison goes into REPORT.md as an upgrade section.
-
 ### Phase 1 steps
 
 1. **Nov 10 - 11**: bug catalogue, data file formats, loader and load report
@@ -174,6 +160,20 @@ These dates replace the build plan in section 7 of
 
 If a step slips, the should-have items give way first, from the bottom of the
 list up. The must-have list does not shrink.
+
+### Phase 6 steps
+
+1. **Before (3.13.9):** record the environment (Python, pytest and every
+   installed package version). Re-grade every recorded test script from Phase 3:
+   the path-walker's and the models'. Run the self-tests, and time each step.
+   The models are not called again; their test scripts are data, so this
+   isolates Python from model randomness.
+2. **Upgrade:** move CI, `requires-python` and the dev machines to 3.15. Change
+   a dependency only if it fails on 3.15, and record why.
+3. **After (3.15):** repeat step 1 exactly.
+4. **Compare:** every score must be identical, mutant by mutant. Report the
+   runtime difference, and any warning or configuration change the upgrade
+   needed. The comparison goes into REPORT.md as an upgrade section.
 
 ## Engineering practice
 
