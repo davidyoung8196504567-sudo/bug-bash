@@ -5,7 +5,27 @@
 2. pack-is-fictitious     no telephone number outside the fictitious 555-01xx
                           range, and no 9-digit identifier shapes
 3. catalogue-is-generic   guard 1 run over the bug catalogue
-4. engine-is-standalone   ivrsim imports nothing from bugbash
+4. engine-is-standalone   the ivrsim package imports nothing from the
+                          bugbash package (see below)
+
+The bug-bash repository holds two Python packages. bugbash/ is the harness
+(tasks, mutants, grading, scoring, walkers); ivrsim/ is the engine, a generic
+IVR simulator that knows nothing about bug bashes or scores. The harness may
+import the engine, never the other way round (IVRSIM_DESIGN.md, sections 2 E
+and 2 G), because:
+  - ivrsim must work installed on its own: BLINDMAN depends on it alone, the
+    browser version loads it alone through Pyodide, and it may later move to
+    its own repository;
+  - rewards stay in the harness, so the engine cannot behave differently
+    because it is being graded.
+
+Inside this repository a wrong-way import works and every test passes,
+because both packages sit side by side. It fails only once ivrsim runs alone:
+    # ivrsim/runner.py
+    from bugbash.grader import grade
+    -> ModuleNotFoundError: No module named 'bugbash'
+Guard 4 rejects that line when it is committed:
+    ivrsim/runner.py:2: [engine-is-standalone] imports 'bugbash.grader'
 
 A fifth check, private-terms, applies the terms in .guards-local.txt to every
 file. That file is ignored by git, because a public list of real organisation
@@ -30,8 +50,8 @@ REPO = Path(__file__).resolve().parent.parent
 VOCABULARY_FILE = "tools/guard_vocabulary.txt"
 LOCAL_TERMS_FILE = ".guards-local.txt"
 
-ENGINE_DIR = "ivrsim"
-BANNED_IMPORT = "bugbash"
+ENGINE_DIR = "ivrsim"          # the engine package
+BANNED_IMPORT = "bugbash"      # the harness package (not the repository name)
 # Inside the engine directory, these are not engine source.
 NOT_ENGINE_DIRS = {"packs", "tests"}
 MAX_BYTES = 2_000_000
