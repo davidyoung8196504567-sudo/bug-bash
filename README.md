@@ -10,6 +10,8 @@ as the participants.)
 
 **Status:** Phase 0, under active development. See [PLAN.md](PLAN.md) for the
 timeline and [JOURNAL.md](JOURNAL.md) for the daily research log.
+PDF copies of the plan and the ivrsim design are in [docs/pdf/](docs/pdf/), rebuilt
+automatically whenever either changes.
 
 ## The idea
 

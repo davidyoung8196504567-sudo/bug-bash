@@ -1,0 +1,50 @@
+name: Docs PDF
+
+# Renders the plan and design documents listed in tools/docs_pdf/docs.txt
+# to docs/pdf/ and commits them. Only documents whose source changed are
+# rebuilt (see docs/pdf/SOURCES.json).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "PLAN.md"
+      - "IVRSIM_DESIGN.md"
+      - "tools/docs_pdf/**"
+      - ".github/workflows/docs-pdf.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-pdf
+  cancel-in-progress: false
+
+jobs:
+  pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # the footer shows each document's last commit
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq pandoc fonts-dejavu
+      - run: npm ci
+        working-directory: tools/docs_pdf
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "1"
+      - run: python3 tools/docs_pdf/build.py
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+      - name: Commit the PDFs
+        run: |
+          git add docs/pdf
+          if git diff --cached --quiet; then echo "No PDF changes"; exit 0; fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Rebuild docs PDFs for ${GITHUB_SHA::7}"
+          git pull --rebase origin main
+          git push origin HEAD:main

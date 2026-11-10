@@ -1,0 +1,4 @@
+# Plan and design documents rendered to docs/pdf/ on every push to main.
+# One Markdown path per line, relative to the repository root.
+PLAN.md
+IVRSIM_DESIGN.md

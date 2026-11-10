@@ -1,0 +1,9 @@
+{
+  "name": "docs-pdf",
+  "private": true,
+  "description": "Renders the plan and design documents to PDF. Used by .github/workflows/docs-pdf.yml.",
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "11.4.2",
+    "puppeteer": "23.11.1"
+  }
+}
