@@ -53,6 +53,21 @@ python -m pytest tests
 Candidate tests import the code under test as `impl`, for example
 `from impl import is_open`.
 
+## Guards
+
+Everything in this repository is fictitious, and four guards keep it that way
+(design: [IVRSIM_DESIGN.md](IVRSIM_DESIGN.md), section 6). They run in CI, and
+as a pre-commit hook once you install it in your clone:
+
+```bash
+git config core.hooksPath tools/hooks
+python tools/guards.py        # run them by hand over the whole tree
+```
+
+Names that must never be published go in `.guards-local.txt`, one per line.
+Git ignores that file, and the guards refuse any commit that contains one of
+its terms.
+
 ## Safety note
 
 Phase 0 runs candidate tests in a subprocess with a timeout only. Do not
