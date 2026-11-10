@@ -26,7 +26,10 @@ fictitious (section 6).
 | --- | --- | --- |
 | **1.0** (this repository) | LLM training and evaluation | A fully automated engine: load a pack and a test deck, run the caller's test cases, answer as the IVR and as an automated service officer. Minimal developer consoles. YAML data files. Text only |
 | 2 | IVR testers | Polished pages, pick lists and other human-support features, campaign calls, an Excel workbook importer and exporter, richer agent scenarios |
-| 2.0 (optional) | Both | Text-to-speech and speech-to-text, for defects caused by poor conversion |
+| 2.0 (optional) | Both | Text-to-speech and speech-to-text, for defects caused by poor conversion. This adds the `blindman` output mode (section 2, H) |
+
+Release 1 is text only, which makes it the **`deafman` output mode** (section 2,
+H). Release 2.0's speech output adds the **`blindman` mode**.
 
 **Platform stages:** (1) everything on one dev PC; (2) the simulator and the
 caller over a private LAN; (3) the same Python engine running in a browser
@@ -103,9 +106,46 @@ engine run in Pyodide.
 | Use | What it calls |
 | --- | --- |
 | Bug-finding evaluation | The model writes test scripts (data); the grader runs them against the original and the mutant |
-| Model as the caller | `next()`/`send()` in a loop; the model hears prompt text only |
+| Model as the caller | `next()`/`send()` in a loop; the model hears prompt text only (`deafman` mode) |
+| Agent as an audio caller (release 2.0) | The same loop in `blindman` mode: the agent receives prompt audio only |
 | RL-style environment | A thin `reset(pack, when, world)` / `step(action)` wrapper; rewards stay in bug-bash, not in the engine |
 | Synthetic transcripts | Enumerate paths; the event streams become transcripts, fictitious by construction |
+
+### H. Output modes: `deafman` and `blindman`
+
+The same call flow can be delivered through **one sense only**. A mode is a
+presentation layer over `next()`. The engine, the pack, `send()` and `trace`
+are identical in every mode.
+
+| Mode | The caller receives | Serves | Agent under test |
+| --- | --- | --- | --- |
+| **`deafman`** (release 1) | Prompt text only, never audio | Callers who are deaf or hard of hearing, as text relay and real-time text (RTT) serve them | A language model reading text |
+| **`blindman`** (release 2.0) | Prompt audio only, never text | Callers who are blind or have low vision | An agent that must recognize the prompt by ear, such as [BLINDMAN](https://github.com/davidyoung8196504567-sudo/blindman) |
+
+- **`deafman`** passes `Prompt.text` through. It is what release 1 already
+  does, given a name.
+- **`blindman`** renders each `Prompt` to audio with an open-licence
+  text-to-speech model, and later optionally with recorded prompts. It
+  withholds `text`. Rendering happens **outside the engine**, in the caller
+  layer, so the engine keeps rule F: no I/O, no randomness, and it still runs
+  under Pyodide. Audio is cached by prompt ID and language, so a run stays
+  deterministic.
+- **Input is unchanged:** keypad digits in both modes, plus `Say(text)` once
+  speech input exists.
+- **Grading is unchanged:** the runner grades on `trace` and prompt IDs
+  (option D3), never on what the caller heard. A mode cannot change a score
+  through grading, only through the caller's behaviour.
+
+**Why both:** running one pack in both modes measures what hearing adds or
+costs. A prompt that reads clearly but is misheard when spoken (a homophone,
+or a number read too fast) is a defect only `blindman` exposes. A model that
+passes in `deafman` and fails in `blindman` has found a speech-specific defect
+or has a weak ear, and comparing the two traces tells which.
+
+**Who owns what:** `ivrsim` owns both modes. BLINDMAN is a separate public
+project that supplies the ear: a recognizer that turns `blindman` audio back
+into something an agent can act on. It uses `ivrsim` as a dependency and never
+copies it, so section 6's guards still cover every pack.
 
 ### The session interface
 
@@ -121,6 +161,147 @@ run_call(pack, when, world, inputs) -> list[Event]
 `next()` returns only what the caller perceives. `trace` holds everything,
 including nodes the caller never hears. Black-box mode sees `next()`; white-box
 mode and debugging see `trace`.
+
+### Functional components and I/O
+
+**Status: proposed, for review.** Every arrow is labelled with what passes
+along it.
+
+**Legend:**
+- **Circles** are outside `ivrsim`.
+- **Cylinders** are data files.
+- **Dashed borders** mark release 2.0 parts.
+
+There are four views:
+1. context: `ivrsim` and everything outside it;
+2. loading and mutation;
+3. one call;
+4. testing and grading.
+
+**1. Context: `ivrsim` as one box**
+
+```mermaid
+flowchart LR
+    DEV(("Pack author"))
+    TESTER(("Human tester<br/>or service officer"))
+    MODEL(("Model under test"))
+    BM(("BLINDMAN agent<br/>separate repo"))
+    BB(("bug-bash harness"))
+    TTS(("Open-licence<br/>TTS model"))
+    CI(("CI and<br/>pre-commit"))
+    IVR["ivrsim"]
+
+    DEV <-- "in: pack (YAML flows, prompts,<br/>config, test scripts)<br/>out: load report" --> IVR
+    MODEL <-- "in: keypad input, test scripts<br/>out: prompt text (deafman)" --> IVR
+    BM <-- "in: keypad, later speech<br/>out: prompt audio (blindman)" --> IVR
+    IVR <-- "out: prompt text<br/>in: audio" --> TTS
+    TESTER <-- "in: console input<br/>out: prompts, events" --> IVR
+    IVR <-- "in: pack, when, world, scripts,<br/>reset / step<br/>out: events, expected vs observed,<br/>mutants + diffs" --> BB
+    IVR <-- "in: run guards and tests<br/>out: pass / fail" --> CI
+
+    classDef later stroke-dasharray:5 4,stroke:#888,color:#000
+    class BM,TTS later
+```
+
+**2. Loading and mutation**
+
+```mermaid
+flowchart LR
+    PACK[("Original pack<br/>YAML, UTF-8")]
+    KNOWN[("known_issues.yaml,<br/>baseline in manifest")]
+    IO["File reader<br/>outside the engine"]
+    LOADER["Loader and<br/>validator"]
+    REPORT[("Load report<br/>errors, warnings,<br/>diff from baseline")]
+    PO["Pack object<br/>in memory"]
+    GEN["Mutation generator<br/>14 operators, seeded"]
+    MUT[("Mutant packs + diffs<br/>BB-ndy-NNN")]
+
+    PACK -- "paths" --> IO
+    KNOWN -- "paths" --> IO
+    IO -- "file contents" --> LOADER
+    LOADER -- "errors, warnings, diff" --> REPORT
+    LOADER -- "0 errors: runnable" --> PO
+    PO -- "certified only:<br/>0 errors, 0 diffs" --> GEN
+    GEN -- "one change each,<br/>+ its diff" --> MUT
+    MUT -- "reloaded like any pack" --> IO
+```
+
+**3. One call: the session and the output modes**
+
+```mermaid
+flowchart LR
+    RUN["Caller layer<br/>runner, console,<br/>model loop, RL wrapper"]
+
+    subgraph ENGINE["Engine: no I/O, no clock, no randomness (rule F)"]
+        SESSION["IvrSession<br/>9 Architect actions"]
+        EXPR["Expression parser<br/>never eval"]
+        ASO["Automated<br/>service officer"]
+        TRACE[("trace<br/>every event")]
+    end
+
+    subgraph MODES["Output modes (§2 H)"]
+        DEAF["deafman<br/>text only"]
+        BLIND["blindman<br/>audio only"]
+        CACHE[("Audio cache<br/>prompt ID + lang")]
+    end
+
+    TTS(("TTS model"))
+    EAR(("Caller:<br/>model, human<br/>or BLINDMAN"))
+
+    RUN -- "pack object, when, world" --> SESSION
+    SESSION -- "condition" --> EXPR
+    EXPR -- "value" --> SESSION
+    SESSION -- "Transfer(queue)" --> ASO
+    ASO -- "AgentSays(text)" --> SESSION
+    SESSION -- "every event,<br/>silent nodes too" --> TRACE
+    SESSION -- "next(): Prompt(id, lang, text),<br/>WaitInput, Transfer,<br/>AgentSays, Disconnect" --> DEAF
+    SESSION -- "next()" --> BLIND
+    BLIND -- "text" --> TTS
+    TTS -- "audio" --> CACHE
+    CACHE -- "audio" --> BLIND
+    DEAF -- "prompt text" --> EAR
+    BLIND -- "prompt audio, no text" --> EAR
+    EAR -- "send(): Digits, NoInput,<br/>Hangup, later Say" --> SESSION
+
+    classDef later stroke-dasharray:5 4,stroke:#888,color:#000
+    class BLIND,CACHE,TTS later
+```
+
+**4. Testing and grading**
+
+```mermaid
+flowchart LR
+    DECK[("Test scripts<br/>inputs + expected IDs<br/>written by a model,<br/>a tester or a console")]
+    ORIG["Session on the<br/>original pack"]
+    MUTS["Session on the<br/>mutant pack"]
+    RUNNER["Runner<br/>run_call(pack, when,<br/>world, inputs)"]
+    BB(("bug-bash grader"))
+    DIFF[("Baseline diff<br/>= the answer")]
+
+    DECK -- "test cases" --> RUNNER
+    RUNNER -- "inputs" --> ORIG
+    RUNNER -- "inputs" --> MUTS
+    ORIG -- "trace: expected<br/>prompt IDs + text" --> RUNNER
+    MUTS -- "trace: observed" --> RUNNER
+    RUNNER -- "per test: pass / fail<br/>by prompt ID (D3)" --> BB
+    DIFF -- "never shown to the model" --> BB
+    BB -- "score, to the run report" --> RPT[("Run report")]
+```
+
+**Notes on the diagram:**
+- **The engine takes file contents, not paths (rule F).** A thin reader
+  outside the engine does the file I/O. The same engine can then run under
+  Pyodide, where a browser page supplies the contents.
+- **`when` and `world` are inputs to every session.** The clock and the state
+  of the world (emergency flags, agents available, wait times) come in from
+  outside, which keeps every run repeatable.
+- **The two output modes sit between `next()` and the caller.** `send()` and
+  `trace` bypass them, so grading never depends on the mode.
+- **Open question: where the runner ends and the grader begins.** §2 E says
+  `ivrsim` never imports `bugbash`, and §2 G says rewards stay in bug-bash.
+  The diagram therefore puts the runner, which produces expected and observed
+  events, in `ivrsim`, and the scoring in bug-bash. §7 lists "Runner and
+  grader" as one step, so this split needs a decision.
 
 ---
 
@@ -424,6 +605,7 @@ PyYAML and pytest pinned in `pyproject.toml`.
 - polished pages and pick lists;
 - the workbook importer;
 - the Archy and Architect-JSON importers;
-- text-to-speech and speech-to-text;
+- text-to-speech and speech-to-text, and with them the `blindman` output mode
+  (section 2, H);
 - a model's proposed fixes as a scored task;
 - the bonus evaluation question.
