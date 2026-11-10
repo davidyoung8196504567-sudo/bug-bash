@@ -1,0 +1,13 @@
+#!/bin/sh
+# Runs the repository guards on what is staged. A public commit is permanent,
+# so this runs before the commit exists. Install once per clone:
+#     git config core.hooksPath tools/hooks
+guards="$(dirname "$0")/../guards.py"
+for python in python3 python py; do
+    # Run it, not just find it: on Windows "python3" can be a stub that fails.
+    if "$python" -c "" >/dev/null 2>&1; then
+        exec "$python" "$guards" --staged
+    fi
+done
+echo "pre-commit: no Python found, so the guards did not run" >&2
+exit 1

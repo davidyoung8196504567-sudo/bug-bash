@@ -1,0 +1,19 @@
+# Words that belong to one service, not to IVRs in general.
+# Guard 1 fails if any of them appears in the engine's source (ivrsim/**/*.py),
+# and guard 3 fails if any appears in the bug catalogue.
+#
+# One term per line. Matching ignores case, and spaces in a term also match
+# "_" and "-", so "not dead yet" matches Not_Dead_Yet. A term matches at the
+# start of a word, so "pension" also matches "pensions" and "pensioner".
+#
+# Only fictitious names go in this file: it is public. Real organisation names
+# go in .guards-local.txt, which is ignored by git (see tools/guards.py).
+
+# The sample service
+not dead yet
+ndy
+pension
+towel day
+
+# The working name in the Day 1 journal
+northwind
