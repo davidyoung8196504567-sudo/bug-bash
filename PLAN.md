@@ -196,6 +196,11 @@ reproducible. Items marked *deferred* wait until after the application
 
 ## Later (out of scope for now)
 
+- **Compatibility testing**: until the system works, everything is locked to
+  one version: Python 3.13.9, pytest 8.4.2, Ubuntu 24.04 LTS in CI (decided
+  2026-11-10). A version changes only to get past a reproduced problem, in the
+  smallest change that does it. Afterwards, test other Python and Ubuntu
+  versions, Windows and macOS, and Pyodide.
 - **Spec-vs-spec task type**: inject inconsistencies between the documents
   themselves (call flow vs prompt sheet vs workbook) and score how many a
   model finds before anything is built.

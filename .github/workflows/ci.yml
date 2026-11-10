@@ -5,26 +5,27 @@ on:
     branches: [main]
   pull_request:
 
+# Locked to one OS image and one Python, matching the dev machines (Ubuntu
+# 24.04 LTS; Python 3.13.9 on the Mac). Change either only to get past a
+# reproduced problem, in its own commit. Compatibility across versions is
+# tested later (PLAN.md, "Later").
 jobs:
   guards:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13.9"
       - run: python tools/guards.py
 
   test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12", "3.14"]
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.13.9"
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
       - run: python -m bugbash.cli mutants business_hours
