@@ -72,7 +72,9 @@ release 2, as one sheet of a workbook.
 the Architect expression language.** It has:
 - comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`), `And`, `Or` and `Not`;
 - string and integer literals, and `Flow.` and `Participant.` variables;
-- the functions `IsSet`, `IsNotSetOrEmpty` and `ToInt`.
+- the functions `IsSet`, `IsNotSetOrEmpty`, `ToInt`, `ToUpper` and `Trim`.
+  `ToUpper` and `Trim` let a flow normalise a string before comparing it,
+  the defensive habit that the exact comparison below makes necessary.
 
 An unknown function is a load-time error, never a runtime guess.
 
@@ -579,7 +581,10 @@ filed in the right bin (a bug against the spec, or a smell against the norms).
   2. **pack-is-fictitious**: no telephone number outside the fictitious
      555-01xx range, and no 9-digit identifier shapes;
   3. **catalogue-is-generic**: guard 1 run over the catalogue;
-  4. **`ivrsim` imports nothing from `bugbash`**.
+  4. **`ivrsim` imports nothing from `bugbash`**;
+  5. **no-invisible-characters**: no tab, carriage return, zero-width or
+     no-break space, byte-order mark or other character a reader cannot see,
+     in any file. A pack writes them as escapes, so a reviewer can see them.
 - Guards 1 and 2 run as a **pre-commit hook** as well as in CI, because a
   public commit is permanent.
 

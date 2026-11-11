@@ -1,0 +1,4 @@
+# Every text file is stored and checked out with LF line endings, on every
+# OS. Guard 5 refuses carriage returns, so a Windows checkout must not add them.
+* text=auto eol=lf
+*.pdf binary

@@ -78,8 +78,9 @@ operators:
         the same string appears in two spellings; the whitespace and
         invisible variants cannot be seen without showing escapes
     equivalent_when: >
-      the flow normalises both sides before comparing (upper-casing or
-      trimming), or the branch the match controls cannot be reached
+      the flow normalises both sides before comparing (ToUpper for the
+      case variant, Trim for leading and trailing white space), or the
+      branch the match controls cannot be reached
     frequency: common
     caller_impact: silently routed to the wrong place; nothing sounds broken
     how_testers_catch_it: >

@@ -7,6 +7,12 @@
 3. catalogue-is-generic   guard 1 run over the bug catalogue
 4. engine-is-standalone   the ivrsim package imports nothing from the
                           bugbash package (see below)
+5. no-invisible-characters  no character a reader cannot see in any file:
+                          control characters other than newline (so no tab
+                          or carriage return), format characters such as
+                          the zero-width space or byte-order mark, and any
+                          space other than the plain one (such as the
+                          no-break space). Write them as escapes instead.
 
 The bug-bash repository holds two Python packages. bugbash/ is the harness
 (tasks, mutants, grading, scoring, walkers); ivrsim/ is the engine, a generic
@@ -41,6 +47,7 @@ from __future__ import annotations
 
 import ast
 import re
+import unicodedata
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -196,6 +203,26 @@ def check_imports(path: str, text: str) -> list[Violation]:
     return found
 
 
+# --- guard 5: no invisible characters --------------------------------------
+
+def is_invisible(char: str) -> bool:
+    if char == "\n":
+        return False
+    category = unicodedata.category(char)
+    return category in {"Cc", "Cf", "Zl", "Zp"} or (category == "Zs" and char != " ")
+
+
+def check_invisible(path: str, text: str) -> list[Violation]:
+    found = []
+    for number, line in enumerate(text.split("\n"), 1):
+        for column, char in enumerate(line, 1):
+            if is_invisible(char):
+                name = unicodedata.name(char, "control character")
+                found.append(Violation("no-invisible-characters", path, number,
+                                       f"column {column}: U+{ord(char):04X} {name}"))
+    return found
+
+
 # --- all guards over a set of files ----------------------------------------
 
 def run_guards(files: dict[str, str], vocabulary: list[str],
@@ -216,6 +243,7 @@ def run_guards(files: dict[str, str], vocabulary: list[str],
         if is_catalogue(path):
             found += check_terms("catalogue-is-generic", path, text, vocabulary)
         found += check_fictitious(path, text)
+        found += check_invisible(path, text)
         found += check_terms("private-terms", path, text, private_terms or [])
     return found
 

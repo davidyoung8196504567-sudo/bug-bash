@@ -238,3 +238,42 @@ def test_pre_commit_hook_blocks_a_bad_commit_and_allows_a_good_one(repo):
     config.write_text(GOOD)
     git(repo, "add", "queues.yaml")
     assert git(repo, "commit", "-q", "-m", "good", check=False).returncode == 0
+
+
+# --- guard 5: no-invisible-characters ---------------------------------------
+
+@pytest.mark.parametrize("char", [
+    "\u200b",   # zero-width space
+    "\u00a0",   # no-break space
+    "\ufeff",   # byte-order mark
+    "\t",       # tab
+    "\r",       # carriage return
+    "\u2028",   # line separator
+    "\u3000",   # ideographic space
+    "\u202f",   # narrow no-break space
+    "\x07",     # bell, a C0 control character
+])
+def test_invisible_character_is_caught(char):
+    text = "Clients:\n  key: priority" + char + "\n"
+    found = guards.run_guards({"packs/x/config/tables.yaml": text}, [])
+    assert names(found) == ["no-invisible-characters"]
+    assert found[0].line == 2
+    assert f"U+{ord(char):04X}" in found[0].message
+    assert "column 16" in found[0].message
+
+
+@pytest.mark.parametrize("text", [
+    "plain ASCII with spaces\n",
+    "accents are visible: \u00e9t\u00e9, \u00e7a, Montr\u00e9al\n",
+    "mojibake is visible too: \u00c3\u00a9\n",
+    "dashes and quotes: \u2014 \u2018x\u2019 \u201cy\u201d\n",
+    "escapes are fine: \\u200b \\t \\r\n",
+])
+def test_visible_text_passes(text):
+    assert guards.run_guards({"docs/notes.md": text}, []) == []
+
+
+def test_invisible_check_covers_every_file():
+    files = {"README.md": "a\u200bb\n", "bugbash/x.py": "x = 1\t# tab\n", "ivrsim/CATALOGUE.yaml": "ok\n"}
+    found = guards.run_guards(files, [])
+    assert sorted(v.path for v in found) == ["README.md", "bugbash/x.py"]
