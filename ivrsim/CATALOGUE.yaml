@@ -14,9 +14,12 @@
 #   target           the build file and element the change is made to
 #   change           the exact single edit, with its parameters
 #   applies_when     preconditions for a target to qualify
-#   load_level       must be "semantic": the mutant loads with no error or
-#                    warning. Anything the loader rejects is not a bug a
-#                    tester has to find, so it is not an operator.
+#   load_level       "semantic": the mutant loads with no error or warning;
+#                    or "warning": it loads with the warning named, because
+#                    the real platform publishes that defect with a warning
+#                    people ignore. Never "error": anything the loader
+#                    rejects is not a bug a tester has to find. The walker
+#                    never sees the load report.
 #   observable       black_box: how a caller can detect it
 #                    white_box: what reading the build files shows
 #   equivalent_when  cases where the change makes no difference a caller
@@ -29,6 +32,12 @@
 #   caller_impact    what the caller suffers
 #   how_testers_catch_it   the technique a human tester uses
 #   review_note      anything the hand review of mutants must watch for
+#
+# Hidden options: a menu may have keys its prompt never offers, on purpose,
+# known only to service officers (for example 0 for an operator). The
+# call-flow diagram documents them; the prompt sheet does not mention them.
+# Menu operators target hidden keys too, and only a walker that read the
+# spec knows to press them.
 #
 # Invisible characters are written here as escapes (\u200b), never literally.
 
@@ -106,7 +115,8 @@ operators:
     observable:
       black_box: >
         pressing either key leads somewhere other than what the menu prompt
-        just offered; the next prompt heard belongs to the other option
+        just offered; the next prompt heard belongs to the other option. For
+        a hidden key, only the call-flow diagram says where it should go
       white_box: the options map disagrees with the diagram and the menu prompt
     equivalent_when: >
       the two destinations behave identically for the caller, for example
@@ -115,6 +125,36 @@ operators:
     caller_impact: lands in the wrong service, then backs out, repeats or hangs up
     how_testers_catch_it: >
       press every key of every menu and check the first prompt heard
+
+  - id: menu_option_drop
+    defect_class: a missing menu option
+    origin: >
+      The option is removed from the flow, but the prompt is not
+      re-recorded. A hidden option (a key the prompt never offers, kept on
+      purpose for service officers) can be lost the same way.
+    spec_source: >
+      call-flow diagram (menu options, including hidden ones) and prompt
+      sheet (what the menu offers)
+    target: flows/*.yaml, the options of one menu node, hidden keys included
+    change: remove one key from that menu's options (chosen by seed)
+    applies_when: the menu has at least two keys
+    load_level: warning   # the dropped key's destination becomes unreachable
+    observable:
+      black_box: >
+        pressing the key is treated as an invalid entry (the menu's no-match
+        handling). For an offered key the prompt still invites it; for a
+        hidden key only the call-flow diagram does
+      white_box: the key is missing from the options; its destination is unreachable
+    equivalent_when: >
+      another key in the same menu leads to the same destination, and
+      neither the prompt nor the diagram documents the dropped key
+    frequency: occasional
+    caller_impact: >
+      presses an offered option and is told the entry is invalid; a service
+      officer's hidden shortcut stops working
+    how_testers_catch_it: >
+      press every key the menu prompt offers, and every hidden key the
+      call-flow diagram documents
 
   - id: schedule_shift
     defect_class: hours entered wrong
