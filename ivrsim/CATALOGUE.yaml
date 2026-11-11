@@ -193,6 +193,33 @@ operators:
       a reviewer who reads only the titles in the diagram will miss this;
       only reading the expression catches it
 
+  - id: compare_flip
+    defect_class: an off-by-one boundary in a comparison
+    origin: >
+      Off-by-one errors are very common, especially from people used to
+      programming languages where indexing starts at zero, not one.
+    spec_source: >
+      call-flow diagram or business rule (the threshold, and which side of
+      it qualifies)
+    target: flows/*.yaml, one comparison in a decision condition
+    change: >
+      move the boundary by one: "<" becomes "<=", "<=" becomes "<",
+      ">" becomes ">=", ">=" becomes ">"
+    applies_when: >
+      the condition contains an ordering comparison (not == or !=, which
+      condition_inverted covers); not a retry limit, which retry_off_by_one
+      covers
+    load_level: semantic
+    observable:
+      black_box: >
+        only a caller exactly at the threshold goes the wrong way, e.g. a
+        caller with a balance of exactly the limit is refused
+      white_box: the operator does not match the rule as written
+    equivalent_when: the threshold value itself can never occur
+    frequency: common
+    caller_impact: callers exactly at the boundary get the other treatment
+    how_testers_catch_it: test the threshold value itself, and one either side
+
   - id: schedule_shift
     defect_class: hours entered wrong
     origin: >
