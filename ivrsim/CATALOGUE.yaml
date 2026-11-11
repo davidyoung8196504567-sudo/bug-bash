@@ -90,6 +90,32 @@ operators:
       the stored diff must show the change with visible escapes (\u200b,
       a marked space); otherwise the reviewer cannot see it either
 
+  - id: menu_key_swap
+    defect_class: menu wired against the flow diagram
+    origin: >
+      The prompt is re-recorded after a menu reorder, and the flow is not
+      updated.
+    spec_source: >
+      call-flow diagram (menu options) and prompt sheet (what the menu says)
+    target: flows/*.yaml, the options of one menu node
+    change: swap the destinations of two keys in that menu (pair chosen by seed)
+    applies_when: >
+      the menu has at least two keys leading to different destinations; a
+      pair that already shares a destination is never chosen
+    load_level: semantic
+    observable:
+      black_box: >
+        pressing either key leads somewhere other than what the menu prompt
+        just offered; the next prompt heard belongs to the other option
+      white_box: the options map disagrees with the diagram and the menu prompt
+    equivalent_when: >
+      the two destinations behave identically for the caller, for example
+      both transfer to the same queue with the same prompt
+    frequency: common
+    caller_impact: lands in the wrong service, then backs out, repeats or hangs up
+    how_testers_catch_it: >
+      press every key of every menu and check the first prompt heard
+
   - id: schedule_shift
     defect_class: hours entered wrong
     origin: >
