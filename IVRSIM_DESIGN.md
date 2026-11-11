@@ -76,6 +76,12 @@ the Architect expression language.** It has:
 
 An unknown function is a load-time error, never a runtime guess.
 
+**String comparison is exact** (decided 2026-11-11): case-sensitive, with no
+trimming of white space and no removal of invisible characters. Data crosses
+case-sensitive subsystems and databases on real platforms, so the simulator
+never forgives a mismatch that a later system would not. The
+`inconsistent_naming` operator (`ivrsim/CATALOGUE.yaml`) depends on this.
+
 ### D. What the caller observes: ID, language and text
 
 | Option | Black-box realism | Grading | Kills a prompt-text mutant? |

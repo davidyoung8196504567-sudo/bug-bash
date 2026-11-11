@@ -1,0 +1,112 @@
+# ivrsim bug catalogue (release 1)
+#
+# Each entry is one mutation operator: a kind of defect seen on real IVR
+# projects, described generically. The injector reads this file and makes
+# exactly one change per mutant to a certified baseline build. Design:
+# IVRSIM_DESIGN.md, section 4. Guard 3 keeps this file free of any
+# service-specific vocabulary, so every example here is generic.
+#
+# Required fields
+#   id               operator name; mutants are scored per operator
+#   defect_class     the defect's name as a tester would know it
+#   origin           how it happens on real projects, in the author's words
+#   spec_source      the spec document that states the correct value
+#   target           the build file and element the change is made to
+#   change           the exact single edit, with its parameters
+#   applies_when     preconditions for a target to qualify
+#   load_level       must be "semantic": the mutant loads with no error or
+#                    warning. Anything the loader rejects is not a bug a
+#                    tester has to find, so it is not an operator.
+#   observable       black_box: how a caller can detect it
+#                    white_box: what reading the build files shows
+#   equivalent_when  cases where the change makes no difference a caller
+#                    can observe; such mutants are recorded, not scored
+#
+# Optional fields
+#   variants         named forms of the change, one chosen by seed; scores
+#                    stay per operator and can be broken down by variant
+#   frequency        common | occasional | rare (how often it is seen)
+#   caller_impact    what the caller suffers
+#   how_testers_catch_it   the technique a human tester uses
+#   review_note      anything the hand review of mutants must watch for
+#
+# Invisible characters are written here as escapes (\u200b), never literally.
+
+operators:
+
+  - id: inconsistent_naming
+    defect_class: a string that must match another is spelled differently
+    variants:
+      plural: add a trailing "s", or remove one that is there
+      case: change the capitalisation of one letter or of the whole string
+      separator: replace one "_", "-" or space with another of the three
+      whitespace: add a leading or trailing space, or double an inner space
+      invisible: >
+        insert one character that cannot be seen: no-break space (\u00a0),
+        zero-width space (\u200b), byte-order mark (\ufeff), tab (\t) or
+        carriage return (\r)
+    origin: >
+      Humans habitually add the letter "s" to the end of labels, and the
+      same name drifts between documents. Singular or plural are both
+      fine; the defect is the inconsistency. Case differences go unseen
+      by people used to systems that ignore case, yet strings travel
+      through case-sensitive subsystems and databases; this is why
+      defensive code converts everything to upper case before comparing.
+      Extra white space and non-printable characters, often carried in
+      from spreadsheets and copy-paste, break comparisons the same way.
+      All of these survive publishing wherever a name is typed as text
+      rather than chosen from a list.
+    spec_source: >
+      config workbook (data-table keys and values) and call-flow diagram
+      (decision conditions, variable names)
+    target: >
+      one occurrence of a string that is matched at runtime: a string
+      literal in a decision expression, one data-table key or value, or a
+      variable name at one place it is set or read
+    change: apply one variant (chosen by seed) to that one occurrence only
+    applies_when: >
+      the string is compared or looked up while a call runs, not resolved
+      when the pack loads (a dangling reference to a queue, prompt or
+      table is a load error, so it is never a target)
+    load_level: semantic
+    observable:
+      black_box: >
+        only a call down the branch that depends on the match, for example
+        a caller whose data-table row is the one changed; every other path
+        behaves normally
+      white_box: >
+        the same string appears in two spellings; the whitespace and
+        invisible variants cannot be seen without showing escapes
+    equivalent_when: >
+      the flow normalises both sides before comparing (upper-casing or
+      trimming), or the branch the match controls cannot be reached
+    frequency: common
+    caller_impact: silently routed to the wrong place; nothing sounds broken
+    how_testers_catch_it: >
+      a test call per data-table row or decision outcome, not only per
+      menu option
+    review_note: >
+      the stored diff must show the change with visible escapes (\u200b,
+      a marked space); otherwise the reviewer cannot see it either
+
+  - id: schedule_shift
+    defect_class: hours entered wrong
+    origin: >
+      DRAFT, for the author to replace. Opening hours are copied by hand
+      from the requirements into the schedule configuration; a half-hour
+      slip, or 12- vs 24-hour confusion, goes unnoticed because the
+      publish check accepts any valid time.
+    spec_source: config workbook, hours of operation
+    target: config/schedules.yaml, one open or close time of one day range
+    change: move the chosen time by +30 or -30 minutes (chosen by seed)
+    applies_when: the schedule has at least one open range
+    load_level: semantic
+    observable:
+      black_box: >
+        a call within 30 minutes of the changed boundary hears open
+        instead of closed, or the reverse
+      white_box: the time in the file differs from the workbook
+    equivalent_when: >
+      the shifted time falls inside a holiday or an overlapping open range
+    frequency: common
+    caller_impact: turned away while open, or kept in queue after closing
