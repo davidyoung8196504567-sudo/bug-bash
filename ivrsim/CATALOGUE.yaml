@@ -254,6 +254,47 @@ operators:
       count the failed attempts until the fallback, separately for invalid
       input and for no input
 
+  - id: wrong_queue
+    defect_class: a transfer to the wrong queue
+    origin: >
+      The queue is assigned after the IVR selection, and the caller waits
+      for an officer with that queue's skills. Bullseye routing can
+      legitimately push a call to another queue when the lines are very
+      busy, and that queue may not have every skill the original one had.
+      A configuration error produces the same end result: a warm body
+      answers the call but can't help with the issue the caller called
+      about, e.g. a caller who selected French reaches an officer who
+      can't speak French.
+    spec_source: >
+      call-flow diagram and queue list (which queue each transfer reaches,
+      and its language)
+    target: flows/*.yaml, the queue named by one transfer step
+    change: >
+      replace that queue with another queue that exists in the pack
+      (chosen by seed)
+    applies_when: the pack defines at least two queues
+    load_level: semantic
+    observable:
+      black_box: >
+        the simulated officer answers with one word in the queue's
+        language, "HELLO" for English or "BONJOUR" for French; a caller who
+        selected French and hears "HELLO" (or the reverse) has reached the
+        wrong queue
+      white_box: the transfer names a queue the diagram does not show there
+    equivalent_when: the two queues have the same language and the same skills
+    frequency: occasional
+    caller_impact: >
+      the caller waits in line, then reaches an officer who can't help,
+      and is transferred again or calls back
+    how_testers_catch_it: >
+      for every menu path, check that the officer who answers speaks the
+      language the caller selected
+    review_note: >
+      the greeting reveals only the language. A swap between two queues of
+      the same language but different skills is visible only in white box.
+      The simulator does not model backlog, so no overflow is legitimate
+      there: any mismatch is a defect
+
   - id: schedule_shift
     defect_class: hours entered wrong
     origin: >
