@@ -156,6 +156,43 @@ operators:
       press every key the menu prompt offers, and every hidden key the
       call-flow diagram documents
 
+  - id: condition_inverted
+    defect_class: a decision whose condition tests the opposite of its title
+    origin: >
+      Common at flow decision points. The branches are wired correctly for
+      the condition actually written; it is the decision's title that
+      misleads. A box titled "Max calls exceeded?" should test
+      calls > max_calls on its true branch, but the condition written is
+      calls <= max_calls. Readers trust the title, so the inverted
+      condition goes unnoticed.
+    spec_source: >
+      call-flow diagram (the decision's title, and what each outcome is
+      meant to do)
+    target: flows/*.yaml, the condition of one decision node
+    change: >
+      replace the condition with its negation (e.g. ">" becomes "<=",
+      "==" becomes "!="), leaving the title, the outcome labels and their
+      destinations unchanged
+    applies_when: the two outcomes lead to different destinations
+    load_level: semantic
+    observable:
+      black_box: >
+        every call through the decision goes the opposite way, e.g. a
+        caller under the limit is told the limit is exceeded, and a caller
+        over it is let through
+      white_box: >
+        the condition contradicts the decision's title; the outcomes match
+        the condition, not the title
+    equivalent_when: the two destinations behave identically for the caller
+    frequency: common
+    caller_impact: the wrong treatment for every caller through that decision
+    how_testers_catch_it: >
+      one call down each outcome of every decision; in review, read the
+      condition itself and check it against the title, not the title alone
+    review_note: >
+      a reviewer who reads only the titles in the diagram will miss this;
+      only reading the expression catches it
+
   - id: schedule_shift
     defect_class: hours entered wrong
     origin: >
