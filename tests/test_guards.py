@@ -101,6 +101,30 @@ def test_ordinary_pack_content_is_not_flagged(text):
     assert guards.run_guards({"packs/x/config/schedules.yaml": text}, []) == []
 
 
+@pytest.mark.parametrize("text", [
+    "ani: +44 20 7946 0123",
+    "ani: +44 7700 900456",
+    "ani: +442079460999",
+    "ani: +44-20-7946-0100",
+    "when: 2026-11-04T10:00:00+05:30",          # a UTC offset is not a number
+    "when: 2026-11-04T10:00:00+0100",
+])
+def test_fictitious_international_numbers_pass(text):
+    assert guards.run_guards({"packs/x/config/callers.yaml": text}, []) == []
+
+
+@pytest.mark.parametrize("text", [
+    "ani: +44 20 7946 1123",                    # London, but outside the drama range
+    "ani: +44 20 7123 4567",
+    "ani: +33 1 23 45 67 89",
+    "ani: +61 491 570 006",
+])
+def test_real_looking_international_numbers_are_caught(text):
+    found = guards.run_guards({"packs/x/config/callers.yaml": text}, [])
+    assert names(found) == ["pack-is-fictitious"]
+    assert "international number" in found[0].message
+
+
 def test_fictitious_check_covers_every_file_not_only_packs():
     found = guards.run_guards({"docs/spec.md": "Call 613-992-4211.\n"}, [])
     assert names(found) == ["pack-is-fictitious"]

@@ -2,8 +2,10 @@
 """Repository guards (IVRSIM_DESIGN.md, section 6).
 
 1. engine-is-generic      no service-specific vocabulary in ivrsim/ source
-2. pack-is-fictitious     no telephone number outside the fictitious 555-01xx
-                          range, and no 9-digit identifier shapes
+2. pack-is-fictitious     no North American telephone number outside the
+                          fictitious 555-01xx range, no international number
+                          outside the UK drama ranges, and no 9-digit
+                          identifier shapes
 3. catalogue-is-generic   guard 1 run over the bug catalogue
 4. engine-is-standalone   the ivrsim package imports nothing from the
                           bugbash package (see below)
@@ -138,6 +140,11 @@ PHONE_10 = re.compile(
     r"(?<![A-Za-z0-9-])(?:\+?1[\s.-]?)?\(?([2-9]\d\d)\)?[\s.-]?([2-9]\d\d)[\s.-]?(\d{4})(?![A-Za-z0-9-])"
 )
 PHONE_7 = re.compile(r"(?<![A-Za-z0-9-])([2-9]\d\d)[\s.-](\d{4})(?![A-Za-z0-9-])")
+# International numbers: "+" and a country code other than 1.
+PHONE_INTL = re.compile(r"(?<![A-Za-z0-9+])\+(?!1)(\d[\d\s.-]*\d)(?![A-Za-z0-9])")
+# Ofcom reserves two UK ranges for drama: London 020 7946 0xxx and mobile
+# 07700 900xxx. Split so this line is not itself a 9-digit shape.
+INTL_FICTION_PREFIXES = ("44" "2079460", "44" "7700900")
 NINE_DIGIT = re.compile(
     r"(?<![A-Za-z0-9-])(?:\d{9}|\d{3}[ -]\d{3}[ -]\d{3}|\d{3}-\d{2}-\d{4})(?![A-Za-z0-9-])"
 )
@@ -146,6 +153,11 @@ NINE_DIGIT = re.compile(
 def is_fictitious(exchange: str, line_number: str) -> bool:
     """555-0100 to 555-0199 is reserved for fiction in every area code."""
     return exchange == "555" and line_number.startswith("01")
+
+
+def is_fictitious_intl(digits: str) -> bool:
+    """The UK reserves two ranges for drama; no other country is used."""
+    return len(digits) == 12 and digits.startswith(INTL_FICTION_PREFIXES)
 
 
 def check_fictitious(path: str, text: str) -> list[Violation]:
@@ -164,8 +176,18 @@ def check_fictitious(path: str, text: str) -> list[Violation]:
                                        f"telephone number {match.group(0)!r} is outside 555-01xx"))
             return " " * len(match.group(0))
 
+        def phone_intl(match: re.Match[str]) -> str:
+            digits = re.sub(r"\D", "", match.group(1))
+            if len(digits) < 8:          # too short to dial, e.g. a UTC offset
+                return match.group(0)
+            if not is_fictitious_intl(digits):
+                found.append(Violation(guard, path, number,
+                                       f"international number {match.group(0)!r} is outside "
+                                       "the UK drama ranges 020 7946 0xxx and 07700 900xxx"))
+            return " " * len(match.group(0))
+
         # Blank out each number once reported, so one number gives one report.
-        rest = PHONE_7.sub(phone7, PHONE_10.sub(phone10, line))
+        rest = PHONE_7.sub(phone7, PHONE_10.sub(phone10, PHONE_INTL.sub(phone_intl, line)))
         for match in NINE_DIGIT.finditer(rest):
             found.append(Violation(guard, path, number,
                                    f"9-digit identifier shape {match.group(0)!r}"))

@@ -578,8 +578,11 @@ filed in the right bin (a bug against the spec, or a smell against the norms).
   any real organisation's flows, prompts or data.
 - **Guards**, each proved to work by planting a violation:
   1. **engine-is-generic**: no organisation-specific vocabulary in `ivrsim/`;
-  2. **pack-is-fictitious**: no telephone number outside the fictitious
-     555-01xx range, and no 9-digit identifier shapes;
+  2. **pack-is-fictitious**: no North American telephone number outside the
+     fictitious 555-01xx range, no international number outside the UK's
+     drama ranges (London 020 7946 0xxx and mobile 07700 900xxx, dialled
+     with +44 and the leading 0 dropped), and no 9-digit
+     identifier shapes;
   3. **catalogue-is-generic**: guard 1 run over the catalogue;
   4. **`ivrsim` imports nothing from `bugbash`**;
   5. **no-invisible-characters**: no tab, carriage return, zero-width or
