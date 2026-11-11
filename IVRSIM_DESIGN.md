@@ -158,17 +158,66 @@ copies it, so section 6's guards still cover every pack.
 ### The session interface
 
 ```python
-session = IvrSession(pack, when=datetime(...), world={...})
+session = IvrSession(pack, when=datetime(...), ani="+1 613 555 0104", world={...})
 session.next()   # -> Prompt(id, lang, text) | WaitInput(kind, min, max, terminator)
                  #    | Transfer(queue) | AgentSays(text) | Disconnect(reason)
 session.send(e)  # e: Digits("1") | Digits("000101#") | NoInput() | Hangup() | Say(text)
 session.trace    # the full event stream, including silent nodes
-run_call(pack, when, world, inputs) -> list[Event]
+run_call(pack, when, ani, world, inputs) -> list[Event]
 ```
 
 `next()` returns only what the caller perceives. `trace` holds everything,
 including nodes the caller never hears. Black-box mode sees `next()`; white-box
 mode and debugging see `trace`.
+
+### The caller's number (ANI)
+
+**Status: proposed, for review (2026-11-11).** A real IVR reads the caller's
+number from the phone network (ANI). Until ivrsim has a phone interface, the
+number is an input to every call: `ani` in the session interface above, with
+`ani=None` for an anonymous caller.
+
+The number decides the caller's **region**, and the region decides two things:
+
+- the **default language**, which applies until the caller selects one;
+- the **time zone** in which hours of operation are evaluated, so a schedule
+  can be relative to the caller. `when` stays an absolute instant; the
+  caller's local time is derived from it.
+
+Region rules are pack data (`config/regions.yaml`), not engine code, so the
+engine stays generic. For the bilingual sample service:
+
+| Caller class | How the number is recognised | Default language | Time zone |
+| --- | --- | --- | --- |
+| Quebec | +1 and a Quebec area code (418, 438, 450, 514, 579, 581, 819, 873, 367, 354, 263, 468) | fr | America/Toronto |
+| Rest of North America | any other +1 number | en | by area code (below) |
+| International | + and a country code other than 1 | en | America/Toronto |
+| Anonymous | no number | en | America/Toronto (assumed; to confirm) |
+
+Test numbers, one per North American time zone, all in the fictitious range
+(guard 2):
+
+| Zone | Test number | Time zone |
+| --- | --- | --- |
+| Newfoundland | 709-555-0101 | America/St_Johns |
+| Atlantic | 902-555-0102 | America/Halifax |
+| Eastern, Quebec | 514-555-0103 | America/Toronto |
+| Eastern, rest | 613-555-0104 | America/Toronto |
+| Central | 204-555-0105 | America/Winnipeg |
+| Central, no daylight saving | 306-555-0106 | America/Regina |
+| Mountain | 403-555-0107 | America/Edmonton |
+| Pacific | 604-555-0108 | America/Vancouver |
+| International | +44 20 7946 0109 | America/Toronto, by rule |
+
+Rules that hold across the call:
+
+- **The selected language belongs to the call.** It is carried through every
+  transfer and callback. The number's default applies only until a
+  selection is made; re-deriving it from a number later in the call is a
+  defect (catalogue: `language_unset`).
+- **A callback may go to a different number than the ANI.** The selected
+  language still applies. Which time zone governs the callback's hours, the
+  original number's or the callback number's, is an open question.
 
 ### Functional components and I/O
 
