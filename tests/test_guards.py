@@ -101,6 +101,30 @@ def test_ordinary_pack_content_is_not_flagged(text):
     assert guards.run_guards({"packs/x/config/schedules.yaml": text}, []) == []
 
 
+@pytest.mark.parametrize("text", [
+    "ani: +44 20 7946 0123",
+    "ani: +44 7700 900456",
+    "ani: +442079460999",
+    "ani: +44-20-7946-0100",
+    "when: 2026-11-04T10:00:00+05:30",          # a UTC offset is not a number
+    "when: 2026-11-04T10:00:00+0100",
+])
+def test_fictitious_international_numbers_pass(text):
+    assert guards.run_guards({"packs/x/config/callers.yaml": text}, []) == []
+
+
+@pytest.mark.parametrize("text", [
+    "ani: +44 20 7946 1123",                    # London, but outside the drama range
+    "ani: +44 20 7123 4567",
+    "ani: +33 1 23 45 67 89",
+    "ani: +61 491 570 006",
+])
+def test_real_looking_international_numbers_are_caught(text):
+    found = guards.run_guards({"packs/x/config/callers.yaml": text}, [])
+    assert names(found) == ["pack-is-fictitious"]
+    assert "international number" in found[0].message
+
+
 def test_fictitious_check_covers_every_file_not_only_packs():
     found = guards.run_guards({"docs/spec.md": "Call 613-992-4211.\n"}, [])
     assert names(found) == ["pack-is-fictitious"]
@@ -238,3 +262,42 @@ def test_pre_commit_hook_blocks_a_bad_commit_and_allows_a_good_one(repo):
     config.write_text(GOOD)
     git(repo, "add", "queues.yaml")
     assert git(repo, "commit", "-q", "-m", "good", check=False).returncode == 0
+
+
+# --- guard 5: no-invisible-characters ---------------------------------------
+
+@pytest.mark.parametrize("char", [
+    "\u200b",   # zero-width space
+    "\u00a0",   # no-break space
+    "\ufeff",   # byte-order mark
+    "\t",       # tab
+    "\r",       # carriage return
+    "\u2028",   # line separator
+    "\u3000",   # ideographic space
+    "\u202f",   # narrow no-break space
+    "\x07",     # bell, a C0 control character
+])
+def test_invisible_character_is_caught(char):
+    text = "Clients:\n  key: priority" + char + "\n"
+    found = guards.run_guards({"packs/x/config/tables.yaml": text}, [])
+    assert names(found) == ["no-invisible-characters"]
+    assert found[0].line == 2
+    assert f"U+{ord(char):04X}" in found[0].message
+    assert "column 16" in found[0].message
+
+
+@pytest.mark.parametrize("text", [
+    "plain ASCII with spaces\n",
+    "accents are visible: \u00e9t\u00e9, \u00e7a, Montr\u00e9al\n",
+    "mojibake is visible too: \u00c3\u00a9\n",
+    "dashes and quotes: \u2014 \u2018x\u2019 \u201cy\u201d\n",
+    "escapes are fine: \\u200b \\t \\r\n",
+])
+def test_visible_text_passes(text):
+    assert guards.run_guards({"docs/notes.md": text}, []) == []
+
+
+def test_invisible_check_covers_every_file():
+    files = {"README.md": "a\u200bb\n", "bugbash/x.py": "x = 1\t# tab\n", "ivrsim/CATALOGUE.yaml": "ok\n"}
+    found = guards.run_guards(files, [])
+    assert sorted(v.path for v in found) == ["README.md", "bugbash/x.py"]

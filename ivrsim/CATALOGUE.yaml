@@ -1,0 +1,372 @@
+# ivrsim bug catalogue (release 1)
+#
+# Each entry is one mutation operator: a kind of defect seen on real IVR
+# projects, described generically. The injector reads this file and makes
+# exactly one change per mutant to a certified baseline build. Design:
+# IVRSIM_DESIGN.md, section 4. Guard 3 keeps this file free of any
+# service-specific vocabulary, so every example here is generic.
+#
+# Required fields
+#   id               operator name; mutants are scored per operator
+#   defect_class     the defect's name as a tester would know it
+#   origin           how it happens on real projects, in the author's words
+#   spec_source      the spec document that states the correct value
+#   target           the build file and element the change is made to
+#   change           the exact single edit, with its parameters
+#   applies_when     preconditions for a target to qualify
+#   load_level       "semantic": the mutant loads with no error or warning;
+#                    or "warning": it loads with the warning named, because
+#                    the real platform publishes that defect with a warning
+#                    people ignore. Never "error": anything the loader
+#                    rejects is not a bug a tester has to find. The walker
+#                    never sees the load report.
+#   observable       black_box: how a caller can detect it
+#                    white_box: what reading the build files shows
+#   equivalent_when  cases where the change makes no difference a caller
+#                    can observe; such mutants are recorded, not scored
+#
+# Optional fields
+#   variants         named forms of the change, one chosen by seed; scores
+#                    stay per operator and can be broken down by variant
+#   frequency        common | occasional | rare (how often it is seen)
+#   caller_impact    what the caller suffers
+#   how_testers_catch_it   the technique a human tester uses
+#   review_note      anything the hand review of mutants must watch for
+#
+# Hidden options: a menu may have keys its prompt never offers, on purpose,
+# known only to service officers (for example 0 for an operator). The
+# call-flow diagram documents them; the prompt sheet does not mention them.
+# Menu operators target hidden keys too, and only a walker that read the
+# spec knows to press them.
+#
+# Invisible characters are written here as escapes (\u200b), never literally.
+
+operators:
+
+  - id: inconsistent_naming
+    defect_class: a string that must match another is spelled differently
+    variants:
+      plural: add a trailing "s", or remove one that is there
+      case: change the capitalisation of one letter or of the whole string
+      separator: replace one "_", "-" or space with another of the three
+      whitespace: add a leading or trailing space, or double an inner space
+      invisible: >
+        insert one character that cannot be seen: no-break space (\u00a0),
+        zero-width space (\u200b), byte-order mark (\ufeff), tab (\t) or
+        carriage return (\r)
+    origin: >
+      Humans habitually add the letter "s" to the end of labels, and the
+      same name drifts between documents. Singular or plural are both
+      fine; the defect is the inconsistency. Case differences go unseen
+      by people used to systems that ignore case, yet strings travel
+      through case-sensitive subsystems and databases; this is why
+      defensive code converts everything to upper case before comparing.
+      Extra white space and non-printable characters, often carried in
+      from spreadsheets and copy-paste, break comparisons the same way.
+      All of these survive publishing wherever a name is typed as text
+      rather than chosen from a list.
+    spec_source: >
+      config workbook (data-table keys and values) and call-flow diagram
+      (decision conditions, variable names)
+    target: >
+      one occurrence of a string that is matched at runtime: a string
+      literal in a decision expression, one data-table key or value, or a
+      variable name at one place it is set or read
+    change: apply one variant (chosen by seed) to that one occurrence only
+    applies_when: >
+      the string is compared or looked up while a call runs, not resolved
+      when the pack loads (a dangling reference to a queue, prompt or
+      table is a load error, so it is never a target)
+    load_level: semantic
+    observable:
+      black_box: >
+        only a call down the branch that depends on the match, for example
+        a caller whose data-table row is the one changed; every other path
+        behaves normally
+      white_box: >
+        the same string appears in two spellings; the whitespace and
+        invisible variants cannot be seen without showing escapes
+    equivalent_when: >
+      the flow normalises both sides before comparing (ToUpper for the
+      case variant, Trim for leading and trailing white space), or the
+      branch the match controls cannot be reached
+    frequency: common
+    caller_impact: silently routed to the wrong place; nothing sounds broken
+    how_testers_catch_it: >
+      a test call per data-table row or decision outcome, not only per
+      menu option
+    review_note: >
+      the stored diff must show the change with visible escapes (\u200b,
+      a marked space); otherwise the reviewer cannot see it either
+
+  - id: menu_key_swap
+    defect_class: menu wired against the flow diagram
+    origin: >
+      The prompt is re-recorded after a menu reorder, and the flow is not
+      updated.
+    spec_source: >
+      call-flow diagram (menu options) and prompt sheet (what the menu says)
+    target: flows/*.yaml, the options of one menu node
+    change: swap the destinations of two keys in that menu (pair chosen by seed)
+    applies_when: >
+      the menu has at least two keys leading to different destinations; a
+      pair that already shares a destination is never chosen
+    load_level: semantic
+    observable:
+      black_box: >
+        pressing either key leads somewhere other than what the menu prompt
+        just offered; the next prompt heard belongs to the other option. For
+        a hidden key, only the call-flow diagram says where it should go
+      white_box: the options map disagrees with the diagram and the menu prompt
+    equivalent_when: >
+      the two destinations behave identically for the caller, for example
+      both transfer to the same queue with the same prompt
+    frequency: common
+    caller_impact: lands in the wrong service, then backs out, repeats or hangs up
+    how_testers_catch_it: >
+      press every key of every menu and check the first prompt heard
+
+  - id: menu_option_drop
+    defect_class: a missing menu option
+    origin: >
+      The option is removed from the flow, but the prompt is not
+      re-recorded. A hidden option (a key the prompt never offers, kept on
+      purpose for service officers) can be lost the same way.
+    spec_source: >
+      call-flow diagram (menu options, including hidden ones) and prompt
+      sheet (what the menu offers)
+    target: flows/*.yaml, the options of one menu node, hidden keys included
+    change: remove one key from that menu's options (chosen by seed)
+    applies_when: the menu has at least two keys
+    load_level: warning   # the dropped key's destination becomes unreachable
+    observable:
+      black_box: >
+        pressing the key is treated as an invalid entry (the menu's no-match
+        handling). For an offered key the prompt still invites it; for a
+        hidden key only the call-flow diagram does
+      white_box: the key is missing from the options; its destination is unreachable
+    equivalent_when: >
+      another key in the same menu leads to the same destination, and
+      neither the prompt nor the diagram documents the dropped key
+    frequency: occasional
+    caller_impact: >
+      presses an offered option and is told the entry is invalid; a service
+      officer's hidden shortcut stops working
+    how_testers_catch_it: >
+      press every key the menu prompt offers, and every hidden key the
+      call-flow diagram documents
+
+  - id: condition_inverted
+    defect_class: a decision whose condition tests the opposite of its title
+    origin: >
+      Common at flow decision points. The branches are wired correctly for
+      the condition actually written; it is the decision's title that
+      misleads. A box titled "Max calls exceeded?" should test
+      calls > max_calls on its true branch, but the condition written is
+      calls <= max_calls. Readers trust the title, so the inverted
+      condition goes unnoticed.
+    spec_source: >
+      call-flow diagram (the decision's title, and what each outcome is
+      meant to do)
+    target: flows/*.yaml, the condition of one decision node
+    change: >
+      replace the condition with its negation (e.g. ">" becomes "<=",
+      "==" becomes "!="), leaving the title, the outcome labels and their
+      destinations unchanged
+    applies_when: the two outcomes lead to different destinations
+    load_level: semantic
+    observable:
+      black_box: >
+        every call through the decision goes the opposite way, e.g. a
+        caller under the limit is told the limit is exceeded, and a caller
+        over it is let through
+      white_box: >
+        the condition contradicts the decision's title; the outcomes match
+        the condition, not the title
+    equivalent_when: the two destinations behave identically for the caller
+    frequency: common
+    caller_impact: the wrong treatment for every caller through that decision
+    how_testers_catch_it: >
+      one call down each outcome of every decision; in review, read the
+      condition itself and check it against the title, not the title alone
+    review_note: >
+      a reviewer who reads only the titles in the diagram will miss this;
+      only reading the expression catches it
+
+  - id: compare_flip
+    defect_class: an off-by-one boundary in a comparison
+    origin: >
+      Off-by-one errors are very common, especially from people used to
+      programming languages where indexing starts at zero, not one.
+    spec_source: >
+      call-flow diagram or business rule (the threshold, and which side of
+      it qualifies)
+    target: flows/*.yaml, one comparison in a decision condition
+    change: >
+      move the boundary by one: "<" becomes "<=", "<=" becomes "<",
+      ">" becomes ">=", ">=" becomes ">"
+    applies_when: >
+      the condition contains an ordering comparison (not == or !=, which
+      condition_inverted covers); not a retry limit, which retry_off_by_one
+      covers
+    load_level: semantic
+    observable:
+      black_box: >
+        only a caller exactly at the threshold goes the wrong way, e.g. a
+        caller with a balance of exactly the limit is refused
+      white_box: the operator does not match the rule as written
+    equivalent_when: the threshold value itself can never occur
+    frequency: common
+    caller_impact: callers exactly at the boundary get the other treatment
+    how_testers_catch_it: test the threshold value itself, and one either side
+
+  - id: retry_off_by_one
+    defect_class: a retry limit off by one
+    origin: >
+      The specs use inconsistent language: one place says "on the 3rd
+      failed attempt", and the flow's condition is "retries = 2". Treating
+      attempts and retries as the same thing leads to a configuration
+      error. It usually happens where invalid-input and no-input handling
+      is set up.
+    spec_source: >
+      call-flow diagram and business rules (how many failed attempts
+      before the fallback, and whether the text counts attempts or retries)
+    target: >
+      flows/*.yaml, one retry limit of one menu or input step; the
+      invalid-input limit and the no-input limit are separate targets
+    change: raise or lower that limit by one (chosen by seed)
+    applies_when: the step has that retry limit, set to at least 1
+    load_level: semantic
+    observable:
+      black_box: >
+        the fallback (e.g. transfer to an agent, or "goodbye") comes one
+        failed attempt early or one late, for invalid input or for no
+        input, whichever limit was changed
+      white_box: >
+        the limit does not match the spec once attempts and retries are
+        told apart
+    equivalent_when: never; every failed attempt is reachable
+    frequency: common
+    caller_impact: >
+      one attempt too few, so the caller is pushed to the fallback early;
+      or one too many, which costs an extra round of the prompt
+    how_testers_catch_it: >
+      count the failed attempts until the fallback, separately for invalid
+      input and for no input
+
+  - id: wrong_queue
+    defect_class: a transfer to the wrong queue
+    origin: >
+      The queue is assigned after the IVR selection, and the caller waits
+      for an officer with that queue's skills. Bullseye routing can
+      legitimately push a call to another queue when the lines are very
+      busy, and that queue may not have every skill the original one had.
+      A configuration error produces the same end result: a warm body
+      answers the call but can't help with the issue the caller called
+      about, e.g. a caller who selected French reaches an officer who
+      can't speak French.
+    spec_source: >
+      call-flow diagram and queue list (which queue each transfer reaches,
+      and its language)
+    target: flows/*.yaml, the queue named by one transfer step
+    change: >
+      replace that queue with another queue that exists in the pack
+      (chosen by seed)
+    applies_when: the pack defines at least two queues
+    load_level: semantic
+    observable:
+      black_box: >
+        the simulated officer answers with one word in the queue's
+        language, "HELLO" for English or "BONJOUR" for French; a caller who
+        selected French and hears "HELLO" (or the reverse) has reached the
+        wrong queue
+      white_box: the transfer names a queue the diagram does not show there
+    equivalent_when: the two queues have the same language and the same skills
+    frequency: occasional
+    caller_impact: >
+      the caller waits in line, then reaches an officer who can't help,
+      and is transferred again or calls back
+    how_testers_catch_it: >
+      for every menu path, check that the officer who answers speaks the
+      language the caller selected
+    review_note: >
+      the greeting reveals only the language. A swap between two queues of
+      the same language but different skills is visible only in white box.
+      The simulator does not model backlog, so no overflow is legitimate
+      there: any mismatch is a defect
+
+  - id: language_unset
+    defect_class: a selected language that is lost
+    origin: >
+      A language selection gets lost when it is not the caller's default.
+      The default comes from the area code of the caller's number, and a
+      mobile number's area code need not match where the caller lives: a
+      caller with a Quebec mobile number who lives in Ontario selects
+      English. During a transfer or callback the selection is replaced by
+      the default for the caller's number. A callback can also go to a
+      different number than the one the caller called from, whose area
+      code has a different default language and schedule.
+    spec_source: >
+      call-flow diagram (language menu and the language it sets) and the
+      region rules (default language by the caller's area code)
+    target: >
+      flows/*.yaml, the language after the language menu, at a transfer, or
+      at a callback
+    change: >
+      at one point (chosen by seed), replace the selected language with the
+      default for a number
+    variants:
+      not_stored: >
+        remove the set-language step for one language outcome, so the
+        caller's regional default stays in force
+      reset_at_transfer: >
+        at a transfer, set the language to the default for the caller's
+        number
+      reset_at_callback: >
+        at a callback, set the language to the default for the callback
+        number
+    applies_when: >
+      the flow has a language menu, and for the reset variants a transfer
+      or a callback after it
+    load_level: semantic
+    observable:
+      black_box: >
+        after choosing a language, part of the call continues in the
+        regional default instead, e.g. a caller with a Quebec number who
+        chose English hears French prompts, or "BONJOUR" from the officer
+      white_box: >
+        a language outcome does not set the language, or a later step
+        sets it again from a number
+    equivalent_when: >
+      the default for the number used is the language the caller selected;
+      caught only by a caller whose default is the other language
+    caller_impact: >
+      the caller chose one language and is served in the other, often
+      after waiting in line, by an officer who may not speak the chosen one
+    how_testers_catch_it: >
+      choose each language from each caller class (Quebec, rest of North
+      America, international, anonymous), follow the call through every
+      transfer and callback, and give a callback number whose default
+      differs from the selected language
+
+  - id: schedule_shift
+    defect_class: hours entered wrong
+    origin: >
+      DRAFT, for the author to replace. Opening hours are copied by hand
+      from the requirements into the schedule configuration; a half-hour
+      slip, or 12- vs 24-hour confusion, goes unnoticed because the
+      publish check accepts any valid time.
+    spec_source: config workbook, hours of operation
+    target: config/schedules.yaml, one open or close time of one day range
+    change: move the chosen time by +30 or -30 minutes (chosen by seed)
+    applies_when: the schedule has at least one open range
+    load_level: semantic
+    observable:
+      black_box: >
+        a call within 30 minutes of the changed boundary hears open
+        instead of closed, or the reverse
+      white_box: the time in the file differs from the workbook
+    equivalent_when: >
+      the shifted time falls inside a holiday or an overlapping open range
+    frequency: common
+    caller_impact: turned away while open, or kept in queue after closing

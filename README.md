@@ -55,7 +55,7 @@ Candidate tests import the code under test as `impl`, for example
 
 ## Guards
 
-Everything in this repository is fictitious, and four guards keep it that way
+Everything in this repository is fictitious, and five guards keep it that way
 (design: [IVRSIM_DESIGN.md](IVRSIM_DESIGN.md), section 6). They run in CI, and
 as a pre-commit hook once you install it in your clone:
 
