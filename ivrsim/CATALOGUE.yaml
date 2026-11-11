@@ -295,6 +295,60 @@ operators:
       The simulator does not model backlog, so no overflow is legitimate
       there: any mismatch is a defect
 
+  - id: language_unset
+    defect_class: a selected language that is lost
+    origin: >
+      A language selection gets lost when it is not the caller's default.
+      The default comes from the area code of the caller's number, and a
+      mobile number's area code need not match where the caller lives: a
+      caller with a Quebec mobile number who lives in Ontario selects
+      English. During a transfer or callback the selection is replaced by
+      the default for the caller's number. A callback can also go to a
+      different number than the one the caller called from, whose area
+      code has a different default language and schedule.
+    spec_source: >
+      call-flow diagram (language menu and the language it sets) and the
+      region rules (default language by the caller's area code)
+    target: >
+      flows/*.yaml, the language after the language menu, at a transfer, or
+      at a callback
+    change: >
+      at one point (chosen by seed), replace the selected language with the
+      default for a number
+    variants:
+      not_stored: >
+        remove the set-language step for one language outcome, so the
+        caller's regional default stays in force
+      reset_at_transfer: >
+        at a transfer, set the language to the default for the caller's
+        number
+      reset_at_callback: >
+        at a callback, set the language to the default for the callback
+        number
+    applies_when: >
+      the flow has a language menu, and for the reset variants a transfer
+      or a callback after it
+    load_level: semantic
+    observable:
+      black_box: >
+        after choosing a language, part of the call continues in the
+        regional default instead, e.g. a caller with a Quebec number who
+        chose English hears French prompts, or "BONJOUR" from the officer
+      white_box: >
+        a language outcome does not set the language, or a later step
+        sets it again from a number
+    equivalent_when: >
+      the default for the number used is the language the caller selected;
+      caught only by a caller whose default is the other language
+    caller_impact: >
+      the caller chose one language and is served in the other, often
+      after waiting in line, by an officer who may not speak the chosen one
+    how_testers_catch_it: >
+      choose each language from each caller class (Quebec, rest of North
+      America, international, anonymous), follow the call through every
+      transfer and callback, and give a callback number whose default
+      differs from the selected language
+
   - id: schedule_shift
     defect_class: hours entered wrong
     origin: >
