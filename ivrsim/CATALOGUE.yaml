@@ -220,6 +220,40 @@ operators:
     caller_impact: callers exactly at the boundary get the other treatment
     how_testers_catch_it: test the threshold value itself, and one either side
 
+  - id: retry_off_by_one
+    defect_class: a retry limit off by one
+    origin: >
+      The specs use inconsistent language: one place says "on the 3rd
+      failed attempt", and the flow's condition is "retries = 2". Treating
+      attempts and retries as the same thing leads to a configuration
+      error. It usually happens where invalid-input and no-input handling
+      is set up.
+    spec_source: >
+      call-flow diagram and business rules (how many failed attempts
+      before the fallback, and whether the text counts attempts or retries)
+    target: >
+      flows/*.yaml, one retry limit of one menu or input step; the
+      invalid-input limit and the no-input limit are separate targets
+    change: raise or lower that limit by one (chosen by seed)
+    applies_when: the step has that retry limit, set to at least 1
+    load_level: semantic
+    observable:
+      black_box: >
+        the fallback (e.g. transfer to an agent, or "goodbye") comes one
+        failed attempt early or one late, for invalid input or for no
+        input, whichever limit was changed
+      white_box: >
+        the limit does not match the spec once attempts and retries are
+        told apart
+    equivalent_when: never; every failed attempt is reachable
+    frequency: common
+    caller_impact: >
+      one attempt too few, so the caller is pushed to the fallback early;
+      or one too many, which costs an extra round of the prompt
+    how_testers_catch_it: >
+      count the failed attempts until the fallback, separately for invalid
+      input and for no input
+
   - id: schedule_shift
     defect_class: hours entered wrong
     origin: >
